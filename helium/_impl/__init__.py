@@ -13,12 +13,10 @@ from selenium.common.exceptions import UnexpectedAlertPresentException, \
 	ElementNotVisibleException, MoveTargetOutOfBoundsException, \
 	WebDriverException, StaleElementReferenceException, \
 	NoAlertPresentException, NoSuchWindowException
-from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support.ui import Select
-from selenium.webdriver import Chrome, ChromeOptions
-from selenium.webdriver import Firefox
+from selenium.webdriver import Chrome, ChromeOptions, Firefox, FirefoxOptions
 from time import sleep, time
 
 import atexit
@@ -76,40 +74,41 @@ class APIImpl:
 		" * set_driver(...)"
 	def __init__(self):
 		self.driver = None
-	def start_firefox_impl(self, url=None, headless=False):
-		driver = self._locate_web_driver('geckodriver')
-		kwargs = {
+	def start_firefox_impl(self, url=None, headless=False, options=None):
+		firefox_driver = self._start_firefox_driver(headless, options)
+		return self._start(firefox_driver, url)
+	def _start_firefox_driver(self, headless, options):
+		firefox_options = self._get_firefox_options(headless, options)
+		kwargs = self._get_firefox_driver_kwargs(firefox_options)
+		result = Firefox(**kwargs)
+		atexit.register(self._kill_service, result.service)
+		return result
+	def _get_firefox_options(self, headless, options):
+		result = FirefoxOptions() if options is None else options
+		if headless:
+			result.headless = True
+		return result
+	def _get_firefox_driver_kwargs(self, firefox_options):
+		result = {
+			'options': firefox_options,
 			'service_log_path': 'nul' if is_windows() else '/dev/null'
 		}
+		driver = self._locate_web_driver('geckodriver')
 		if exists(driver):
 			self._ensure_driver_is_executable(driver)
-			kwargs['executable_path'] = driver
-		if headless:
-			options = Options()
-			options.headless = True
-			kwargs['options'] = options
-		firefox = Firefox(**kwargs)
-		atexit.register(self._kill_service, firefox.service)
-		return self._start(firefox, url)
-	def _ensure_driver_is_executable(self, driver_path):
-		if not access(driver_path, X_OK):
-			try:
-				make_executable(driver_path)
-			except:
-				raise RuntimeError(
-					"The driver located at %s is not executable." % driver_path
-				) from None
-	def start_chrome_impl(self, url=None, headless=False):
-		chrome_driver = self._start_chrome_driver(headless)
+			result['executable_path'] = driver
+		return result
+	def start_chrome_impl(self, url=None, headless=False, options=None):
+		chrome_driver = self._start_chrome_driver(headless, options)
 		return self._start(chrome_driver, url)
-	def _start_chrome_driver(self, headless):
-		chrome_options = self._get_chrome_options(headless)
+	def _start_chrome_driver(self, headless, options):
+		chrome_options = self._get_chrome_options(headless, options)
 		kwargs = self._get_chrome_driver_kwargs(chrome_options)
 		result = Chrome(**kwargs)
 		atexit.register(self._kill_service, result.service)
 		return result
-	def _get_chrome_options(self, headless):
-		result = ChromeOptions()
+	def _get_chrome_options(self, headless, options):
+		result = ChromeOptions() if options is None else options
 		# Prevent Chrome's debug logs from appearing in our console window:
 		result.add_experimental_option('excludeSwitches', ['enable-logging'])
 		if headless:
@@ -131,6 +130,14 @@ class APIImpl:
 			dirname(__file__), 'webdrivers', get_canonical_os_name(),
 			driver_name
 		)
+	def _ensure_driver_is_executable(self, driver_path):
+		if not access(driver_path, X_OK):
+			try:
+				make_executable(driver_path)
+			except:
+				raise RuntimeError(
+					"The driver located at %s is not executable." % driver_path
+				) from None
 	def _kill_service(self, service):
 		old = service.send_remote_shutdown_command
 		service.send_remote_shutdown_command = lambda: None
@@ -193,62 +200,45 @@ class APIImpl:
 	def press_impl(self, key):
 		self.require_driver().switch_to.active_element.send_keys(key)
 	def click_impl(self, element):
-		self._perform_mouse_action(
-			element,
-			lambda elt: elt.click(), lambda action_chains: action_chains.click()
-		)
+		self._perform_mouse_action(element, self._click)
 	def doubleclick_impl(self, element):
-		driver = self.require_driver()
-		self._perform_mouse_action(
-			element,
-			lambda elt: driver.action().double_click(elt).perform(),
-			lambda action_chains: action_chains.double_click()
-		)
+		self._perform_mouse_action(element, self._doubleclick)
 	def hover_impl(self, element):
-		driver = self.require_driver()
-		self._perform_mouse_action(
-			element,
-			lambda elt: driver.action().move_to_element(elt).perform(),
-			 # _perform_mouse_action(...) already called move_to_element(...):
-			lambda action_chains: action_chains
-		)
+		self._perform_mouse_action(element, self._hover)
 	def rightclick_impl(self, element):
-		driver = self.require_driver()
-		self._perform_mouse_action(
-			element,
-			lambda elt: driver.action().context_click(elt).perform(),
-			lambda action_chains: action_chains.context_click()
-		)
-	def press_mouse_on(self, element):
-		driver = self.require_driver()
-		self._perform_mouse_action(
-			element,
-			lambda elt: driver.action().click_and_hold(elt).perform(),
-			lambda action_chains: action_chains.click_and_hold()
-		)
-	def release_mouse_over(self, element):
-		drvr = self.require_driver()
-		self._perform_mouse_action(
-			element,
-			lambda elt: drvr.action().move_to_element(elt).release().perform(),
-			lambda action_chains, elt: action_chains.release(elt)
-		)
+		self._perform_mouse_action(element, self._rightclick)
+	def press_mouse_on_impl(self, element):
+		self._perform_mouse_action(element, self._press_mouse_on)
+	def release_mouse_over_impl(self, element):
+		self._perform_mouse_action(element, self._release_mouse_over)
+	def _click(self, selenium_elt, offset):
+		self._move_to_element(selenium_elt, offset).click().perform()
+	def _doubleclick(self, selenium_elt, offset):
+		self._move_to_element(selenium_elt, offset).double_click().perform()
+	def _hover(self, selenium_elt, offset):
+		self._move_to_element(selenium_elt, offset).perform()
+	def _rightclick(self, selenium_elt, offset):
+		self._move_to_element(selenium_elt, offset).context_click().perform()
+	def _press_mouse_on(self, selenium_elt, offset):
+		self._move_to_element(selenium_elt, offset).click_and_hold().perform()
+	def _release_mouse_over(self, selenium_elt, offset):
+		self._move_to_element(selenium_elt, offset).release().perform()
+	def _move_to_element(self, element, offset):
+		result = self.require_driver().action()
+		if offset is not None:
+			result.move_to_element_with_offset(element, *offset)
+		else:
+			result.move_to_element(element)
+		return result
+	def drag_impl(self, element, to):
+		with DragHelper(self) as drag_helper:
+			self._perform_mouse_action(element, drag_helper.start_dragging)
+			self._perform_mouse_action(to, drag_helper.drop_on_target)
 	@might_spawn_window
 	@handle_unexpected_alert
-	def _perform_mouse_action(
-		self, element, action_without_offset, action_with_offset
-	):
+	def _perform_mouse_action(self, element, action):
 		element, offset = self._unwrap_clickable_element(element)
-		driver = self.require_driver()
-		if offset is not None:
-			def action(elt):
-				action_chains = driver\
-					.action()\
-					.move_to_element_with_offset(elt.unwrap(), *offset)
-				action_with_offset(action_chains).perform()
-		else:
-			action = lambda wew: action_without_offset(wew.unwrap())
-		self._manipulate(element, action)
+		self._manipulate(element, lambda wew: action(wew.unwrap(), offset))
 	def _unwrap_clickable_element(self, elt):
 		from helium import HTMLElement, Point
 		offset = None
@@ -273,12 +263,6 @@ class APIImpl:
 			# work even when this happens:
 			offset = (1, 1)
 		return element, offset
-	def drag_impl(self, element, to):
-		with DragHelper(self) as drag_helper:
-			element, _ = self._unwrap_clickable_element(element)
-			self._manipulate(element, drag_helper.start_dragging)
-			to, _ = self._unwrap_clickable_element(to)
-			self._manipulate(to, drag_helper.drop_on_target)
 	@handle_unexpected_alert
 	def find_all_impl(self, predicate):
 		return [
@@ -443,18 +427,16 @@ class DragHelper:
 			"};"
 		)
 		return self
-	def start_dragging(self, element):
+	def start_dragging(self, element, offset):
 		if self._attempt_html_5_drag(element):
 			self.is_html_5_drag = True
 		else:
-			self.api_impl.press_mouse_on(element)
-	def drop_on_target(self, target):
+			self.api_impl._press_mouse_on(element, offset)
+	def drop_on_target(self, target, offset):
 		if self.is_html_5_drag:
 			self._complete_html_5_drag(target)
 		else:
-			self.api_impl.release_mouse_over(target)
-	def __exit__(self, *_):
-		self._execute_script("delete window.helium;")
+			self.api_impl._release_mouse_over(target, offset)
 	def _attempt_html_5_drag(self, element_to_drag):
 		return self._execute_script(
 			"var source = arguments[0];"
@@ -483,7 +465,7 @@ class DragHelper:
 			"source.dispatchEvent(dragStart);"
 			"window.helium.dragHelper.dataTransfer = dragStart.dataTransfer;"
 			"return true;",
-			element_to_drag.unwrap()
+			element_to_drag
 		)
 	def _complete_html_5_drag(self, on):
 		self._execute_script(
@@ -494,8 +476,10 @@ class DragHelper:
 			"var dragEnd = window.helium.dragHelper.createEvent('dragend');"
 			"dragEnd.dataTransfer = window.helium.dragHelper.dataTransfer;"
 			"window.helium.dragHelper.draggedElement.dispatchEvent(dragEnd);",
-			on.unwrap()
+			on
 		)
+	def __exit__(self, *_):
+		self._execute_script("delete window.helium;")
 	def _execute_script(self, script, *args):
 		return self.api_impl.require_driver().execute_script(script, *args)
 
@@ -683,7 +667,7 @@ class GUIElementImpl:
 			return True
 		if isinstance(exception, WebDriverException):
 			msg = exception.msg
-			if 'Element is not clickable at point' in msg \
+			if 'is not clickable at point' in msg \
 				and 'Other element would receive the click' in msg:
 				# This can happen when the element has moved.
 				return True

@@ -1,28 +1,17 @@
-# Helium
+# Selenium-python but lighter: Helium
 
-Helium is a Python library for automating web browsers. For example:
+[Selenium-python](https://selenium-python.readthedocs.io/) is great for web
+automation. Helium makes it easier to use. For example:
 
-```python
-from helium import *
-start_chrome('github.com') # or start_firefox()
-click('Sign in')
-write('mherrmann', into='Username')
-write('my password', into='Password')
-click('Sign in')
-go_to('github.com/mherrmann/helium')
-click('Star')
-kill_browser()
-```
+![Helium Demo](doc/helium-demo.gif)
 
-![Helium Demo](demo.gif)
-
-Under the hood, Helium forwards each call to
-[Selenium](https://www.selenium.dev/). The difference is that Helium's API is
-much more high-level. In Selenium, you need to use HTML IDs, XPaths and CSS
-selectors to identify web page elements. Helium on the other hand lets you refer
-to elements by their user-visible labels. As a result, Helium scripts are 30-50%
-shorter than similar Selenium scripts. What's more, they are easier to read and
-more stable with respect to changes in the underlying web page.
+Under the hood, Helium forwards each call to Selenium. The difference is that
+Helium's API is much more high-level. In Selenium, you need to use HTML IDs,
+XPaths and CSS selectors to identify web page elements. Helium on the other hand
+lets you refer to elements by user-visible labels. As a result, Helium scripts
+are typically 30-50% shorter than similar Selenium scripts. What's more, they
+are easier to read and more stable with respect to changes in the underlying web
+page.
 
 Because Helium is simply a wrapper around Selenium, you can freely mix the two
 libraries. For example:
@@ -36,7 +25,7 @@ driver.execute_script("alert('Hi!');")
 
 So in other words, you don't lose anything by using Helium over pure Selenium.
 
-In addition to its high-level API, Helium simplifies further tasks that are
+In addition to its more high-level API, Helium simplifies further tasks that are
 traditionally painful in Selenium:
 
  * **Web driver management:** Helium ships with its own copies of ChromeDriver
@@ -62,17 +51,17 @@ traditionally painful in Selenium:
    wait_until(Button('Download').exists)
    ```
 
-## Getting started
+## Installation
 
-All you need to get started with Helium is Python 3 and Chrome or Firefox.
+To get started with Helium, you need Python 3 and Chrome or Firefox.
 
-If you already know Python, then the following command should get you started:
+If you already know Python, then the following command should be all you need:
 
 ```bash
 pip install helium
 ```
 
-Otherwise - hi! I would recommend you create a virtual environment in the
+Otherwise - Hi! I would recommend you create a virtual environment in the
 current directory. Any libraries you download (such as Helium) will be placed
 there. Enter the following into a command prompt:
 
@@ -95,8 +84,13 @@ Then, install Helium using `pip`:
 python -m pip install helium
 ```
 
-Now enter `python` into the command prompt and (for instance) the commands at
-the top of this page (`from helium import * ...`).
+Now enter `python` into the command prompt and (for instance) the commands in
+the animation at the top of this page (`from helium import *`, ...).
+
+## Your first script
+
+I've compiled a [cheatsheet](doc/Cheatsheet.md) that quickly teaches you all
+you need to know to be productive with Helium.
 
 ## API Documentation
 
@@ -114,7 +108,21 @@ consulting rates. Otherwise, unless it is very easy for me, I will usually not
 respond to emails or issues on the issue tracker. I will however accept and
 merge PRs. So if you add some functionality to Helium that may be useful for
 others, do share it with us by creating a Pull Request. For instructions, please
-see below.
+see [Contributing](#Contributing) below.
+
+## How you can help
+
+I find Helium extremely useful in my own projects and feel it should be more
+widely known. Here's how you can help with this:
+
+ * Star this project on GitHub.
+ * Tell your friends and colleagues about it.
+ * [Share it on Twitter with one click](https://twitter.com/intent/tweet?text=I%20find%20Helium%20very%20useful%20for%20web%20automation%20with%20Python%3A%20https%3A//github.com/mherrmann/helium)
+ * Share it on other social media
+ * Write a blog post about Helium.
+
+With this, I think we can eventually make Helium the de-facto standard for web
+automation in Python.
 
 ## Contributing
 
@@ -147,10 +155,11 @@ the [`tests/`](tests) directory for what this might look like.
 ## History
 
 I (Michael Herrmann) originally developed Helium in 2013 for a Polish IT startup
-called [HeliumHQ](https://heliumhq.com/) / BugFree software. We shut down the
-company at the end of 2019 and I felt it would be a shame if Helium simply
-disappeared from the face of the earth. So I invested some time to modernize it
-and bring it into a state suitable for open source.
+called BugFree software. (It could be that you have seen Helium before at
+https://heliumhq.com.) We shut down the company at the end of 2019 and I felt it
+would be a shame if Helium simply disappeared from the face of the earth. So I
+invested some time to modernize it and bring it into a state suitable for open
+source.
 
 Helium used to be available for both Java and Python. But I because I now only
 use it from Python, I didn't have time to bring the Java implementation up to

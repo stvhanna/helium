@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
 	name = 'helium',
-	version = '3.0.0',
+	version = '3.0.5-SNAPSHOT',
 	author = 'Michael Herrmann',
 	author_email = 'michael+removethisifyouarehuman@herrmann.io',
 	description = 'Lighter browser automation based on Selenium.',
@@ -34,7 +34,7 @@ setup(
 	],
 	test_suite='tests',
 	tests_require=[
-		'psutil==0.6.1',
+		'psutil==5.6.6',
 		"pywin32 >= 227;platform_system=='Windows'"
 	]
 )
